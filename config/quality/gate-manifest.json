@@ -599,6 +599,11 @@
       "disposition": "separately-invoked"
     },
     {
+      "name": "test:rust",
+      "command": "cargo test --manifest-path rust/Cargo.toml --workspace",
+      "disposition": "separately-invoked"
+    },
+    {
       "name": "test:scoped",
       "command": "bash scripts/quality/test-scoped.sh",
       "disposition": "separately-invoked"
