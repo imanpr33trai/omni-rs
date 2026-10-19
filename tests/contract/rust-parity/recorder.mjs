@@ -46,7 +46,14 @@ async function login(base) {
   });
   if (!res.ok) throw new Error(`sandbox login failed: HTTP ${res.status}`);
   const body = await res.json();
-  const token = body?.token ?? body?.sessionToken ?? body?.data?.token;
+  // The TS sandbox returns { success: true } and mints the session as an
+  // `auth_token` cookie (src/app/api/auth/login/route.ts); fall back to body
+  // fields for servers that return it inline.
+  const cookieToken = res.headers
+    .getSetCookie()
+    .map((c) => /(?:^|[,;]\s*)auth_token=([^;]+)/.exec(c)?.[1])
+    .find(Boolean);
+  const token = cookieToken ?? body?.token ?? body?.sessionToken ?? body?.data?.token;
   if (!token) {
     throw new Error(
       `sandbox login returned no token (keys: ${JSON.stringify(Object.keys(body ?? {}))})`

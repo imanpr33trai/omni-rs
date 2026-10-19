@@ -66,7 +66,12 @@ async function login(base) {
   });
   if (!res.ok) throw new Error(`login failed: HTTP ${res.status}`);
   const body = await res.json();
-  const token = body?.token ?? body?.sessionToken ?? body?.data?.token;
+  // Same contract as recorder.mjs: auth_token cookie first, body fallbacks.
+  const cookieToken = res.headers
+    .getSetCookie()
+    .map((c) => /(?:^|[,;]\s*)auth_token=([^;]+)/.exec(c)?.[1])
+    .find(Boolean);
+  const token = cookieToken ?? body?.token ?? body?.sessionToken ?? body?.data?.token;
   if (!token) throw new Error("login returned no token");
   return token;
 }
