@@ -20,3 +20,5 @@ pub use migration::{
 fn crate_scaffolded() {
     assert_eq!(env!("CARGO_PKG_NAME"), "db");
 }
+pub mod migration;
+pub use migration::{MigrationConfig, MigrationState, MigrationFile, MigrationRecord, run_migration_pipeline, run_migrations, scan_migrations, MigrationError};

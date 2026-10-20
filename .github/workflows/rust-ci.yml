@@ -10,6 +10,8 @@ on:
       - "tests/contract/**"
       - ".github/workflows/rust-ci.yml"
   pull_request:
+    branches:
+      - rust_migration
     paths:
       - "rust/**"
       - "tests/contract/**"
