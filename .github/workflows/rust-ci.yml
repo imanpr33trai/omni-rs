@@ -1,0 +1,43 @@
+name: rust-ci
+
+on:
+  push:
+    branches:
+      - rust_migration
+      - "rust-migration/**"
+    paths:
+      - "rust/**"
+      - "tests/contract/**"
+      - ".github/workflows/rust-ci.yml"
+  pull_request:
+    paths:
+      - "rust/**"
+      - "tests/contract/**"
+      - ".github/workflows/rust-ci.yml"
+
+jobs:
+  build-test:
+    name: fmt / clippy / test / deny
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: rustfmt
+        run: cargo fmt --all -- --check
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: test
+        run: cargo test --workspace
+      - name: cargo-deny (licenses strict, advisories advisory during phase 0)
+        continue-on-error: true
+        run: |
+          cargo install --locked cargo-deny
+          cargo deny check

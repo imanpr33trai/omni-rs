@@ -1,0 +1,40 @@
+[workspace]
+resolver = "3"
+members = ["crates/*", "xtask"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+publish = false
+
+[workspace.dependencies]
+# Internal crates (simple names, per ADR-006 in _tasks/superpowers/specs/)
+auth = { path = "crates/auth" }
+chat = { path = "crates/chat" }
+cli = { path = "crates/cli" }
+config = { path = "crates/config" }
+db = { path = "crates/db" }
+edge = { path = "crates/edge" }
+error = { path = "crates/error" }
+guardrails = { path = "crates/guardrails" }
+oauth = { path = "crates/oauth" }
+policy = { path = "crates/policy" }
+protocols = { path = "crates/protocols" }
+providers = { path = "crates/providers" }
+resilience = { path = "crates/resilience" }
+routing = { path = "crates/routing" }
+services = { path = "crates/services" }
+translate = { path = "crates/translate" }
+
+# External
+axum = "0.8"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+lto = "thin"
+strip = "symbols"
