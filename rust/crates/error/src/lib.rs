@@ -10,9 +10,9 @@
 //! HTTP / SSE / executor response — always route through these functions.
 
 use axum::{
+    Json,
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
-    Json,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -208,11 +208,7 @@ pub fn build_error_body_with_combo(
 }
 
 /// Create a JSON error response — mirrors `errorResponse()` (L650).
-pub fn error_response(
-    code: ErrorCode,
-    status: StatusCode,
-    message: impl Into<String>,
-) -> Response {
+pub fn error_response(code: ErrorCode, status: StatusCode, message: impl Into<String>) -> Response {
     let request_id = Uuid::new_v4().to_string();
     let body = build_error_body(code, status, message, None, None, Some(request_id));
     (status, Json(body)).into_response()
@@ -238,15 +234,32 @@ pub fn error_response_with_upstream(
     upstream: UpstreamError,
 ) -> Response {
     let request_id = Uuid::new_v4().to_string();
-    let body = build_error_body(code, status, message, None, Some(upstream), Some(request_id));
+    let body = build_error_body(
+        code,
+        status,
+        message,
+        None,
+        Some(upstream),
+        Some(request_id),
+    );
     (status, Json(body)).into_response()
 }
 
 /// Write an SSE error frame — mirrors `writeStreamError()`.
 /// Format: `event: error\ndata: {...}\n\n`
 pub fn sse_error_frame(code: ErrorCode, message: impl Into<String>) -> String {
-    let body = build_error_body(code, StatusCode::INTERNAL_SERVER_ERROR, message, None, None, None);
-    let json = serde_json::to_string(&body).unwrap_or_else(|_| r#"{"error":{"message":"serialization failed","code":"internal_error","status":500}}"#.to_string());
+    let body = build_error_body(
+        code,
+        StatusCode::INTERNAL_SERVER_ERROR,
+        message,
+        None,
+        None,
+        None,
+    );
+    let json = serde_json::to_string(&body).unwrap_or_else(|_| {
+        r#"{"error":{"message":"serialization failed","code":"internal_error","status":500}}"#
+            .to_string()
+    });
     format!("event: error\ndata: {}\n\n", json)
 }
 
@@ -254,13 +267,20 @@ pub fn sse_error_frame(code: ErrorCode, message: impl Into<String>) -> String {
 #[derive(Error, Debug)]
 pub enum OmniError {
     #[error("{0}")]
-    Code(ErrorCode, #[source] Option<Box<dyn std::error::Error + Send + Sync>>),
+    Code(
+        ErrorCode,
+        #[source] Option<Box<dyn std::error::Error + Send + Sync>>,
+    ),
 
     #[error("validation failed: {0}")]
     Validation(String),
 
     #[error("upstream: {provider} status {status}: {message}")]
-    Upstream { provider: String, status: u16, message: String },
+    Upstream {
+        provider: String,
+        status: u16,
+        message: String,
+    },
 
     #[error(transparent)]
     Other(#[from] Box<dyn std::error::Error + Send + Sync>),
@@ -284,11 +304,15 @@ impl OmniError {
             | ErrorCode::Unauthorized => StatusCode::UNAUTHORIZED,
             ErrorCode::InsufficientScope => StatusCode::FORBIDDEN,
             ErrorCode::RateLimited => StatusCode::TOO_MANY_REQUESTS,
-            ErrorCode::QuotaExceeded | ErrorCode::DailyQuotaExceeded => StatusCode::PAYMENT_REQUIRED,
+            ErrorCode::QuotaExceeded | ErrorCode::DailyQuotaExceeded => {
+                StatusCode::PAYMENT_REQUIRED
+            }
             ErrorCode::ProviderUnavailable => StatusCode::SERVICE_UNAVAILABLE,
             ErrorCode::ProviderTimeout => StatusCode::GATEWAY_TIMEOUT,
             ErrorCode::ModelNotFound | ErrorCode::ModelUnavailable => StatusCode::NOT_FOUND,
-            ErrorCode::InvalidRequest | ErrorCode::InvalidModel | ErrorCode::InvalidParameters => StatusCode::BAD_REQUEST,
+            ErrorCode::InvalidRequest | ErrorCode::InvalidModel | ErrorCode::InvalidParameters => {
+                StatusCode::BAD_REQUEST
+            }
             ErrorCode::CircuitOpen => StatusCode::SERVICE_UNAVAILABLE,
             ErrorCode::CircuitDegraded => StatusCode::SERVICE_UNAVAILABLE,
             ErrorCode::ConnectionCooledDown => StatusCode::SERVICE_UNAVAILABLE,
@@ -308,7 +332,10 @@ impl OmniError {
 }
 
 /// Helper: wrap any error into OmniError with a code
-pub fn wrap_error(err: impl std::error::Error + Send + Sync + 'static, code: ErrorCode) -> OmniError {
+pub fn wrap_error(
+    err: impl std::error::Error + Send + Sync + 'static,
+    code: ErrorCode,
+) -> OmniError {
     OmniError::Code(code, Some(Box::new(err)))
 }
 
@@ -319,7 +346,10 @@ mod tests {
 
     #[test]
     fn sanitize_removes_stack_trace() {
-        let err = std::io::Error::new(std::io::ErrorKind::Other, "connection refused\n    at Server.connect (/app/server.js:123:45)\n    at Module._compile (internal/modules/cjs/loader:123)");
+        let err = std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "connection refused\n    at Server.connect (/app/server.js:123:45)\n    at Module._compile (internal/modules/cjs/loader:123)",
+        );
         let sanitized = sanitize_error_message(&err);
         assert!(!sanitized.contains("at Server.connect"));
         assert!(!sanitized.contains("/app/server.js"));
@@ -334,7 +364,11 @@ mod tests {
 
     #[test]
     fn error_response_contains_no_stack() {
-        let resp = error_response(ErrorCode::InvalidApiKey, StatusCode::UNAUTHORIZED, "bad key");
+        let resp = error_response(
+            ErrorCode::InvalidApiKey,
+            StatusCode::UNAUTHORIZED,
+            "bad key",
+        );
         let body = resp.into_body();
         // In real test would serialize and check, here just verify construction works
         assert_eq!(StatusCode::UNAUTHORIZED, StatusCode::UNAUTHORIZED);
@@ -350,8 +384,17 @@ mod tests {
 
     #[test]
     fn omni_error_status_mapping() {
-        assert_eq!(OmniError::Code(ErrorCode::InvalidApiKey, None).status(), StatusCode::UNAUTHORIZED);
-        assert_eq!(OmniError::Code(ErrorCode::RateLimited, None).status(), StatusCode::TOO_MANY_REQUESTS);
-        assert_eq!(OmniError::Code(ErrorCode::CircuitOpen, None).status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            OmniError::Code(ErrorCode::InvalidApiKey, None).status(),
+            StatusCode::UNAUTHORIZED
+        );
+        assert_eq!(
+            OmniError::Code(ErrorCode::RateLimited, None).status(),
+            StatusCode::TOO_MANY_REQUESTS
+        );
+        assert_eq!(
+            OmniError::Code(ErrorCode::CircuitOpen, None).status(),
+            StatusCode::SERVICE_UNAVAILABLE
+        );
     }
 }

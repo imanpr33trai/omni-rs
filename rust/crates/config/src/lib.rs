@@ -6,7 +6,10 @@
 //!
 //! Uses figment for layered config: defaults → .env → env vars → DB overrides.
 
-use figment::{Figment, providers::{Env, Format, Toml}};
+use figment::{
+    Figment,
+    providers::{Env, Format, Toml},
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
@@ -257,10 +260,10 @@ impl AppConfig {
     pub fn load() -> Result<Self, ConfigError> {
         let figment = Figment::new()
             .merge(Toml::file("rust/config/defaults.toml")) // defaults file
-            .merge(Toml::file(".env.example"))              // template as fallback
-            .merge(Toml::file(".env").nested())             // user overrides
-            .merge(Env::prefixed("OMNIROUTE_").split("_"))  // env vars with prefix
-            .merge(Env::raw());                             // raw env vars
+            .merge(Toml::file(".env.example")) // template as fallback
+            .merge(Toml::file(".env").nested()) // user overrides
+            .merge(Env::prefixed("OMNIROUTE_").split("_")) // env vars with prefix
+            .merge(Env::raw()); // raw env vars
 
         let mut config: AppConfig = figment.extract()?;
 
@@ -312,25 +315,60 @@ impl Default for AppConfig {
                 omniroute_plugins_dir: None,
             },
             network: NetworkConfig { port: 20128 },
-            security: SecurityConfig { require_api_key: false },
-            pii: PiiConfig { pii_redaction_enabled: false, pii_response_sanitization: false },
-            tool_routing: ToolRoutingConfig { tool_policy: None, routing_policy: None },
-            urls: UrlsConfig { cloud_sync_url: None, app_url: None },
-            outbound_proxy: OutboundProxyConfig { http_proxy: None, https_proxy: None, no_proxy: None },
-            cli_tool: CliToolConfig { cli_tool_integration: None },
-            agent_mcp: AgentMcpConfig { agent_mcp_enabled: false },
-            oauth: OauthConfig { oauth_credentials: None },
+            security: SecurityConfig {
+                require_api_key: false,
+            },
+            pii: PiiConfig {
+                pii_redaction_enabled: false,
+                pii_response_sanitization: false,
+            },
+            tool_routing: ToolRoutingConfig {
+                tool_policy: None,
+                routing_policy: None,
+            },
+            urls: UrlsConfig {
+                cloud_sync_url: None,
+                app_url: None,
+            },
+            outbound_proxy: OutboundProxyConfig {
+                http_proxy: None,
+                https_proxy: None,
+                no_proxy: None,
+            },
+            cli_tool: CliToolConfig {
+                cli_tool_integration: None,
+            },
+            agent_mcp: AgentMcpConfig {
+                agent_mcp_enabled: false,
+            },
+            oauth: OauthConfig {
+                oauth_credentials: None,
+            },
             ua: UaConfig { ua_override: None },
             fingerprint: FingerprintConfig { fingerprint: None },
-            api_key_providers: ApiKeyProvidersConfig { api_key_providers: None },
-            timeouts: TimeoutsConfig { timeout_ms: None, connect_timeout_ms: None },
-            logging: LoggingConfig { app_log_level: "info".into() },
-            memory: MemoryConfig { memory_optimization: None },
+            api_key_providers: ApiKeyProvidersConfig {
+                api_key_providers: None,
+            },
+            timeouts: TimeoutsConfig {
+                timeout_ms: None,
+                connect_timeout_ms: None,
+            },
+            logging: LoggingConfig {
+                app_log_level: "info".into(),
+            },
+            memory: MemoryConfig {
+                memory_optimization: None,
+            },
             pricing: PricingConfig { pricing: None },
             model_sync: ModelSyncConfig { model_sync: None },
-            provider_specific: ProviderSpecificConfig { provider_specific: None },
+            provider_specific: ProviderSpecificConfig {
+                provider_specific: None,
+            },
             proxy_health: ProxyHealthConfig { proxy_health: None },
-            debug: DebugConfig { provider_cooldown_enabled: false, debug: None },
+            debug: DebugConfig {
+                provider_cooldown_enabled: false,
+                debug: None,
+            },
             github: GithubConfig { github_token: None },
             quotas_tunnels_skills: QuotasTunnelsSkillsConfig {
                 mitm_enabled: false,
@@ -348,8 +386,13 @@ impl Default for AppConfig {
             },
             test: TestConfig { test_mode: false },
             radar: RadarConfig { radar: None },
-            v3850: V3850Config { rotation_enabled: false, pii_flags: false },
-            feature_flags: FeatureFlagsConfig { flags: HashMap::new() },
+            v3850: V3850Config {
+                rotation_enabled: false,
+                pii_flags: false,
+            },
+            feature_flags: FeatureFlagsConfig {
+                flags: HashMap::new(),
+            },
         }
     }
 }

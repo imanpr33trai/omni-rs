@@ -7,7 +7,7 @@
 //! - Connection pool with configurable size
 //! - Migration runner integration point
 
-use rusqlite::{Connection, OpenFlags, params, OptionalExtension};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -16,9 +16,9 @@ use thiserror::Error;
 pub mod error;
 pub mod pool;
 
-use pool::ConnectionPool;
 use config::AppConfig;
 use error::DbError;
+use pool::ConnectionPool;
 
 /// Result type for database operations
 pub type DbResult<T> = Result<T, DbError>;
@@ -52,7 +52,10 @@ impl Default for DbConfig {
 impl DbConfig {
     /// Build config from AppConfig
     pub fn from_app_config(app_config: &AppConfig) -> DbResult<Self> {
-        let data_dir = app_config.storage.data_dir.as_deref()
+        let data_dir = app_config
+            .storage
+            .data_dir
+            .as_deref()
             .or(app_config.storage.omniroute_data_dir.as_deref())
             .unwrap_or("~/.omniroute");
 
@@ -111,7 +114,11 @@ fn apply_pragmas(conn: &mut Connection, config: &DbConfig) -> DbResult<()> {
     conn.pragma_update(None, "cache_size", config.cache_size_kib)?;
 
     // mmap_size (bytes)
-    conn.pragma_update(None, "mmap_size", (config.mmap_size_mib as i64) * 1024 * 1024)?;
+    conn.pragma_update(
+        None,
+        "mmap_size",
+        (config.mmap_size_mib as i64) * 1024 * 1024,
+    )?;
 
     // Page size (optional, default 4096)
     // conn.pragma_update(None, "page_size", 4096)?;
@@ -322,7 +329,10 @@ mod tests {
         let db = Database::new(config)?;
 
         db.transaction(|conn| {
-            conn.execute("CREATE TABLE txn_test (id INTEGER PRIMARY KEY, val TEXT)", [])?;
+            conn.execute(
+                "CREATE TABLE txn_test (id INTEGER PRIMARY KEY, val TEXT)",
+                [],
+            )?;
             conn.execute("INSERT INTO txn_test (val) VALUES ('hello')", [])?;
             Ok(())
         })?;

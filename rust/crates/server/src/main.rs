@@ -1,14 +1,14 @@
 //! OmniRoute Rust server — Phase 1 skeleton (simplified working version).
 
 use axum::{
+    Router,
     extract::{Request, State},
     http::{HeaderMap, HeaderValue, Method, StatusCode, header},
     response::{IntoResponse, Json, Response},
     routing::{get, post},
-    Router,
 };
 use config::AppConfig;
-use error::{error_response, ErrorCode, sanitize_error_message, sse_error_frame};
+use error::{ErrorCode, error_response, sanitize_error_message, sse_error_frame};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -19,8 +19,8 @@ use tower_http::trace::TraceLayer;
 use tracing::{error, info, warn};
 
 use auth::{
-    AuthTier, classify_route, create_dashboard_session_token, extract_api_key,
-    is_local_request, verify_dashboard_session_token, HealthResponse,
+    AuthTier, HealthResponse, classify_route, create_dashboard_session_token, extract_api_key,
+    is_local_request, verify_dashboard_session_token,
 };
 
 const DEFAULT_PORT: u16 = 20128;
@@ -51,8 +51,22 @@ async fn main() {
     // Build CORS layer from config
     let cors = CorsLayer::new()
         .allow_origin(tower_http::cors::Any)
-        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::PATCH, Method::DELETE, Method::OPTIONS, Method::HEAD])
-        .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::HeaderName::from_static("x-api-key"), header::HeaderName::from_static("x-csrf-token"), header::HeaderName::from_static("x-requested-with")])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+            Method::HEAD,
+        ])
+        .allow_headers([
+            header::CONTENT_TYPE,
+            header::AUTHORIZATION,
+            header::HeaderName::from_static("x-api-key"),
+            header::HeaderName::from_static("x-csrf-token"),
+            header::HeaderName::from_static("x-requested-with"),
+        ])
         .allow_credentials(true)
         .max_age(Duration::from_secs(86400));
 
@@ -68,7 +82,7 @@ async fn main() {
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
                 .layer(RequestBodyLimitLayer::new(10 * 1024 * 1024))
-                .layer(cors)
+                .layer(cors),
         )
         .with_state(state);
 
@@ -99,7 +113,13 @@ async fn auth_status(State(state): State<Arc<AppState>>, request: Request) -> im
         .headers()
         .get(header::COOKIE)
         .and_then(|c| c.to_str().ok())
-        .and_then(|cookie| cookie.split(';').find_map(|part| part.trim().strip_prefix("auth_token=").map(|v| v.to_string())))
+        .and_then(|cookie| {
+            cookie.split(';').find_map(|part| {
+                part.trim()
+                    .strip_prefix("auth_token=")
+                    .map(|v| v.to_string())
+            })
+        })
         .map(|token| auth::verify_dashboard_session_token(&token).is_ok())
         .unwrap_or(false);
 
@@ -110,24 +130,40 @@ async fn auth_status(State(state): State<Arc<AppState>>, request: Request) -> im
 }
 
 /// POST /api/auth/login — dashboard login
-async fn auth_login(State(state): State<Arc<AppState>>, Json(payload): Json<serde_json::Value>) -> Response {
-    let password = payload.get("password").and_then(|v| v.as_str()).unwrap_or("");
-    
+async fn auth_login(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<serde_json::Value>,
+) -> Response {
+    let password = payload
+        .get("password")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
     if password == state.config.secrets.initial_password {
         let token = auth::create_dashboard_session_token(
             "admin",
             Some(vec!["admin".to_string()]),
             Duration::from_secs(86400),
-        ).unwrap_or_else(|_| String::new());
+        )
+        .unwrap_or_else(|_| String::new());
 
-        let mut response = Json(serde_json::json!({ "success": true, "token": token })).into_response();
+        let mut response =
+            Json(serde_json::json!({ "success": true, "token": token })).into_response();
         response.headers_mut().insert(
             header::SET_COOKIE,
-            HeaderValue::from_str(&format!("auth_token={}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400", token)).unwrap(),
+            HeaderValue::from_str(&format!(
+                "auth_token={}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400",
+                token
+            ))
+            .unwrap(),
         );
         response
     } else {
-        error_response(ErrorCode::InvalidApiKey, StatusCode::UNAUTHORIZED, "invalid credentials")
+        error_response(
+            ErrorCode::InvalidApiKey,
+            StatusCode::UNAUTHORIZED,
+            "invalid credentials",
+        )
     }
 }
 
@@ -191,7 +227,10 @@ async fn shutdown_signal() {
         () = terminate => {},
     }
 
-    info!("shutdown signal received — starting graceful drain (timeout: {:?})", GRACEFUL_SHUTDOWN_TIMEOUT);
+    info!(
+        "shutdown signal received — starting graceful drain (timeout: {:?})",
+        GRACEFUL_SHUTDOWN_TIMEOUT
+    );
 }
 
 #[test]

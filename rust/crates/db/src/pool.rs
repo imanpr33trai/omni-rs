@@ -1,7 +1,7 @@
 //! Connection pool for rusqlite connections
 
-use crate::error::{DbError, DbResult};
 use crate::DbConfig;
+use crate::error::{DbError, DbResult};
 use rusqlite::{Connection, OpenFlags};
 use std::collections::VecDeque;
 use std::sync::{Arc, Condvar, Mutex};
@@ -17,12 +17,16 @@ pub struct PooledConnection {
 impl PooledConnection {
     /// Get a reference to the underlying connection
     pub fn conn(&self) -> &Connection {
-        self.conn.as_ref().expect("connection already returned to pool")
+        self.conn
+            .as_ref()
+            .expect("connection already returned to pool")
     }
 
     /// Get a mutable reference to the underlying connection
     pub fn conn_mut(&mut self) -> &mut Connection {
-        self.conn.as_mut().expect("connection already returned to pool")
+        self.conn
+            .as_mut()
+            .expect("connection already returned to pool")
     }
 }
 
@@ -180,7 +184,11 @@ fn create_connection(config: &DbConfig) -> DbResult<Connection> {
     conn.pragma_update(None, "synchronous", "NORMAL")?;
     conn.pragma_update(None, "temp_store", "MEMORY")?;
     conn.pragma_update(None, "cache_size", config.cache_size_kib)?;
-    conn.pragma_update(None, "mmap_size", (config.mmap_size_mib as i64) * 1024 * 1024)?;
+    conn.pragma_update(
+        None,
+        "mmap_size",
+        (config.mmap_size_mib as i64) * 1024 * 1024,
+    )?;
     conn.pragma_update(None, "foreign_keys", "ON")?;
     conn.pragma_update(None, "recursive_triggers", "ON")?;
 
@@ -209,9 +217,9 @@ impl ConnectionPool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::sync::Arc;
     use std::thread;
+    use tempfile::TempDir;
 
     #[test]
     fn test_pool_basic() {
@@ -290,8 +298,13 @@ mod tests {
         // Initialize DB
         {
             let conn = pool.get().unwrap();
-            conn.execute("CREATE TABLE counter (id INTEGER PRIMARY KEY, val INTEGER)", []).unwrap();
-            conn.execute("INSERT INTO counter (val) VALUES (0)", []).unwrap();
+            conn.execute(
+                "CREATE TABLE counter (id INTEGER PRIMARY KEY, val INTEGER)",
+                [],
+            )
+            .unwrap();
+            conn.execute("INSERT INTO counter (val) VALUES (0)", [])
+                .unwrap();
         }
 
         // Spawn multiple threads to increment
@@ -300,7 +313,8 @@ mod tests {
             let pool_clone = pool.clone();
             handles.push(thread::spawn(move || {
                 let conn = pool_clone.get().unwrap();
-                conn.execute("UPDATE counter SET val = val + 1 WHERE id = 1", []).unwrap();
+                conn.execute("UPDATE counter SET val = val + 1 WHERE id = 1", [])
+                    .unwrap();
             }));
         }
 
@@ -310,7 +324,9 @@ mod tests {
 
         // Verify final count
         let conn = pool.get().unwrap();
-        let val: i64 = conn.query_row("SELECT val FROM counter WHERE id = 1", [], |r| r.get(0)).unwrap();
+        let val: i64 = conn
+            .query_row("SELECT val FROM counter WHERE id = 1", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(val, 10);
     }
 }

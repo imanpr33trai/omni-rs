@@ -12,14 +12,16 @@
 //! - `Management`: default tier for all other routes; waived when
 //!   REQUIRE_API_KEY=false
 
-use std::net::IpAddr;
-use std::time::{Duration, SystemTime};
 use axum::http::{HeaderMap, HeaderValue, Method};
-use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine as _};
+use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64_STANDARD};
 use hmac::{Hmac, Mac};
-use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation, TokenData};
+use jsonwebtoken::{
+    Algorithm, DecodingKey, EncodingKey, Header, TokenData, Validation, decode, encode,
+};
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Sha512};
+use std::net::IpAddr;
+use std::time::{Duration, SystemTime};
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -102,9 +104,8 @@ pub fn classify_route(path: &str) -> AuthTier {
         "/api/providers/health-autopilot/actions",
     ];
 
-    const ALWAYS_PROTECTED_REGEX: &[&str] = &[
-        r"^/api/providers/[^/]+/(claude|codex)-auth/(export|apply-local)$",
-    ];
+    const ALWAYS_PROTECTED_REGEX: &[&str] =
+        &[r"^/api/providers/[^/]+/(claude|codex)-auth/(export|apply-local)$"];
 
     // Check LOCAL_ONLY
     for prefix in LOCAL_ONLY_EXACT {
@@ -143,8 +144,7 @@ pub fn is_local_request(peer_ip: IpAddr) -> bool {
             v4.is_link_local() // 169.254.0.0/16
         }
         IpAddr::V6(v6) => {
-            v6.is_loopback() ||
-            v6.segments()[0] & 0xfe00 == 0xfc00 // ULA (fc00::/7)
+            v6.is_loopback() || v6.segments()[0] & 0xfe00 == 0xfc00 // ULA (fc00::/7)
         }
     }
 }
@@ -211,9 +211,13 @@ impl Default for CorsConfig {
 }
 
 /// Build CORS headers for a response — mirrors `handleCorsOptions` + `cors.ts`
-pub fn build_cors_headers(config: &CorsConfig, origin: Option<&HeaderValue>, is_preflight: bool) -> HeaderMap {
+pub fn build_cors_headers(
+    config: &CorsConfig,
+    origin: Option<&HeaderValue>,
+    is_preflight: bool,
+) -> HeaderMap {
     let mut headers = HeaderMap::new();
-    
+
     // Origin handling
     if let Some(origin_val) = origin {
         if config.allowed_origins.contains(&"*".to_string()) {
@@ -221,7 +225,11 @@ pub fn build_cors_headers(config: &CorsConfig, origin: Option<&HeaderValue>, is_
                 axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
                 HeaderValue::from_static("*"),
             );
-        } else if config.allowed_origins.iter().any(|o| o == origin_val.to_str().unwrap_or("")) {
+        } else if config
+            .allowed_origins
+            .iter()
+            .any(|o| o == origin_val.to_str().unwrap_or(""))
+        {
             headers.insert(
                 axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN,
                 origin_val.clone(),
@@ -242,7 +250,7 @@ pub fn build_cors_headers(config: &CorsConfig, origin: Option<&HeaderValue>, is_
             axum::http::header::ACCESS_CONTROL_ALLOW_METHODS,
             HeaderValue::from_str(&methods).unwrap(),
         );
-        
+
         let headers_str = config.allowed_headers.join(", ");
         headers.insert(
             axum::http::header::ACCESS_CONTROL_ALLOW_HEADERS,
@@ -277,7 +285,7 @@ pub fn validate_csrf_token(headers: &HeaderMap, cookie_token: Option<&str>) -> b
         .get("x-csrf-token")
         .or_else(|| headers.get("x-xsrf-token"))
         .and_then(|v| v.to_str().ok());
-    
+
     match (header_token, cookie_token) {
         (Some(h), Some(c)) => h == c,
         _ => false,
@@ -316,7 +324,7 @@ pub fn create_dashboard_session_token(
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    
+
     let claims = DashboardSessionClaims {
         authenticated: true,
         sub: subject.to_string(),
@@ -324,7 +332,7 @@ pub fn create_dashboard_session_token(
         exp: now + ttl.as_secs(),
         scopes,
     };
-    
+
     let secret = get_jwt_secret();
     encode(
         &Header::new(Algorithm::HS256),
@@ -338,19 +346,18 @@ pub fn create_dashboard_session_token(
 pub fn verify_dashboard_session_token(token: &str) -> Result<DashboardSessionClaims, AuthError> {
     let secret = get_jwt_secret();
     let mut validation = Validation::new(Algorithm::HS256);
-    validation.required_spec_claims.insert("authenticated".to_string());
-    
-    let token_data: TokenData<DashboardSessionClaims> = decode(
-        token,
-        &DecodingKey::from_secret(&secret),
-        &validation,
-    )?;
-    
+    validation
+        .required_spec_claims
+        .insert("authenticated".to_string());
+
+    let token_data: TokenData<DashboardSessionClaims> =
+        decode(token, &DecodingKey::from_secret(&secret), &validation)?;
+
     // Extra check: the `authenticated` claim MUST be true
     if !token_data.claims.authenticated {
         return Err(AuthError::InvalidCredentials);
     }
-    
+
     Ok(token_data.claims)
 }
 
@@ -368,14 +375,14 @@ pub fn extract_api_key(headers: &HeaderMap) -> Option<String> {
             }
         }
     }
-    
+
     // x-api-key header
     if let Some(key) = headers.get("x-api-key") {
         if let Ok(key_str) = key.to_str() {
             return Some(key_str.to_string());
         }
     }
-    
+
     None
 }
 
@@ -419,8 +426,12 @@ impl PeerStamp {
         let mut mac = Hmac::<Sha256>::new_from_slice(&secret).unwrap();
         mac.update(data.as_bytes());
         let signature = hex::encode(mac.finalize().into_bytes());
-        
-        Self { ip, timestamp, signature }
+
+        Self {
+            ip,
+            timestamp,
+            signature,
+        }
     }
 
     /// Verify a peer stamp (must be fresh and signature valid)
@@ -429,17 +440,17 @@ impl PeerStamp {
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        
+
         if now.saturating_sub(self.timestamp) > max_age.as_secs() {
             return false; // stale
         }
-        
+
         let data = format!("{}|{}", self.ip, self.timestamp);
         let secret = get_api_key_secret();
         let mut mac = Hmac::<Sha256>::new_from_slice(&secret).unwrap();
         mac.update(data.as_bytes());
         let expected = hex::encode(mac.finalize().into_bytes());
-        
+
         self.signature == expected
     }
 }
@@ -448,18 +459,18 @@ impl PeerStamp {
 pub fn classify_host_locality(host: &str) -> HostLocality {
     // Strip port
     let host = host.split(':').next().unwrap_or(host);
-    
+
     if host == "localhost" || host == "127.0.0.1" || host == "::1" {
         return HostLocality::Loopback;
     }
-    
+
     if let Ok(ip) = host.parse::<IpAddr>() {
         if is_local_request(ip) {
             return HostLocality::Lan;
         }
         return HostLocality::Remote;
     }
-    
+
     // Hostname - check if it resolves to local (simplified: treat as remote)
     HostLocality::Remote
 }
@@ -511,10 +522,22 @@ impl Default for HealthResponse {
             build_sha: option_env!("BUILD_SHA").map(|s| s.to_string()),
             uptime_secs: 0, // filled by server
             checks: HealthChecks {
-                database: ComponentHealth { status: "ok".into(), details: None },
-                circuit_breakers: ComponentHealth { status: "ok".into(), details: None },
-                rate_limits: ComponentHealth { status: "ok".into(), details: None },
-                providers: ComponentHealth { status: "ok".into(), details: None },
+                database: ComponentHealth {
+                    status: "ok".into(),
+                    details: None,
+                },
+                circuit_breakers: ComponentHealth {
+                    status: "ok".into(),
+                    details: None,
+                },
+                rate_limits: ComponentHealth {
+                    status: "ok".into(),
+                    details: None,
+                },
+                providers: ComponentHealth {
+                    status: "ok".into(),
+                    details: None,
+                },
             },
         }
     }
@@ -529,35 +552,62 @@ mod tests {
     /// Ensure required env vars are set for tests that need them
     fn setup_test_env() {
         unsafe {
-            std::env::set_var("JWT_SECRET", "test-jwt-secret-key-that-is-long-enough-for-hs256");
-            std::env::set_var("API_KEY_SECRET", "test-api-key-secret-that-is-long-enough-for-hmac");
+            std::env::set_var(
+                "JWT_SECRET",
+                "test-jwt-secret-key-that-is-long-enough-for-hs256",
+            );
+            std::env::set_var(
+                "API_KEY_SECRET",
+                "test-api-key-secret-that-is-long-enough-for-hmac",
+            );
         }
     }
 
     #[test]
     fn classify_local_only_exact() {
         assert_eq!(classify_route("/api/mcp/sse"), AuthTier::LocalOnly);
-        assert_eq!(classify_route("/api/cli-tools/something"), AuthTier::LocalOnly);
+        assert_eq!(
+            classify_route("/api/cli-tools/something"),
+            AuthTier::LocalOnly
+        );
         assert_eq!(classify_route("/api/services/foo"), AuthTier::LocalOnly);
     }
 
     #[test]
     fn classify_local_only_regex() {
-        assert_eq!(classify_route("/api/providers/abc/login"), AuthTier::LocalOnly);
-        assert_eq!(classify_route("/api/providers/abc/refresh-cursor"), AuthTier::LocalOnly);
-        assert_eq!(classify_route("/api/providers/validate"), AuthTier::LocalOnly);
+        assert_eq!(
+            classify_route("/api/providers/abc/login"),
+            AuthTier::LocalOnly
+        );
+        assert_eq!(
+            classify_route("/api/providers/abc/refresh-cursor"),
+            AuthTier::LocalOnly
+        );
+        assert_eq!(
+            classify_route("/api/providers/validate"),
+            AuthTier::LocalOnly
+        );
     }
 
     #[test]
     fn classify_always_protected() {
         assert_eq!(classify_route("/api/shutdown"), AuthTier::AlwaysProtected);
-        assert_eq!(classify_route("/api/settings/database"), AuthTier::AlwaysProtected);
+        assert_eq!(
+            classify_route("/api/settings/database"),
+            AuthTier::AlwaysProtected
+        );
     }
 
     #[test]
     fn classify_management_default() {
-        assert_eq!(classify_route("/api/v1/chat/completions"), AuthTier::Management);
-        assert_eq!(classify_route("/api/settings/cache-config"), AuthTier::Management);
+        assert_eq!(
+            classify_route("/api/v1/chat/completions"),
+            AuthTier::Management
+        );
+        assert_eq!(
+            classify_route("/api/settings/cache-config"),
+            AuthTier::Management
+        );
     }
 
     #[test]
@@ -581,8 +631,16 @@ mod tests {
         let cfg = CorsConfig::default();
         let origin = HeaderValue::from_static("http://localhost:3000");
         let headers = build_cors_headers(&cfg, Some(&origin), true);
-        assert!(headers.get(axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN).is_some());
-        assert!(headers.get(axum::http::header::ACCESS_CONTROL_ALLOW_CREDENTIALS).is_some());
+        assert!(
+            headers
+                .get(axum::http::header::ACCESS_CONTROL_ALLOW_ORIGIN)
+                .is_some()
+        );
+        assert!(
+            headers
+                .get(axum::http::header::ACCESS_CONTROL_ALLOW_CREDENTIALS)
+                .is_some()
+        );
     }
 
     #[test]
@@ -608,7 +666,12 @@ mod tests {
     #[test]
     fn jwt_dashboard_session_roundtrip() {
         setup_test_env();
-        let token = create_dashboard_session_token("test-user", Some(vec!["admin".to_string()]), Duration::from_secs(3600)).unwrap();
+        let token = create_dashboard_session_token(
+            "test-user",
+            Some(vec!["admin".to_string()]),
+            Duration::from_secs(3600),
+        )
+        .unwrap();
         let claims = verify_dashboard_session_token(&token).unwrap();
         assert!(claims.authenticated);
         assert_eq!(claims.sub, "test-user");
@@ -625,27 +688,48 @@ mod tests {
             "iat": 123,
             "exp": 9999999999u64
         });
-        let bad_token = encode(&Header::new(Algorithm::HS256), &claims, &EncodingKey::from_secret(&secret)).unwrap();
+        let bad_token = encode(
+            &Header::new(Algorithm::HS256),
+            &claims,
+            &EncodingKey::from_secret(&secret),
+        )
+        .unwrap();
         assert!(verify_dashboard_session_token(&bad_token).is_err());
     }
 
     #[test]
     fn api_key_extraction() {
         let mut headers = HeaderMap::new();
-        headers.insert("authorization", "Bearer sk-test123456789012345678901234".parse().unwrap());
-        assert_eq!(extract_api_key(&headers), Some("sk-test123456789012345678901234".to_string()));
+        headers.insert(
+            "authorization",
+            "Bearer sk-test123456789012345678901234".parse().unwrap(),
+        );
+        assert_eq!(
+            extract_api_key(&headers),
+            Some("sk-test123456789012345678901234".to_string())
+        );
 
         let mut headers2 = HeaderMap::new();
-        headers2.insert("x-api-key", "sk-test123456789012345678901234".parse().unwrap());
-        assert_eq!(extract_api_key(&headers2), Some("sk-test123456789012345678901234".to_string()));
+        headers2.insert(
+            "x-api-key",
+            "sk-test123456789012345678901234".parse().unwrap(),
+        );
+        assert_eq!(
+            extract_api_key(&headers2),
+            Some("sk-test123456789012345678901234".to_string())
+        );
     }
 
     #[test]
     fn api_key_format_validation() {
         setup_test_env();
-        assert!(is_valid_api_key_format("sk-test12345678901234567890123456789"));
+        assert!(is_valid_api_key_format(
+            "sk-test12345678901234567890123456789"
+        ));
         assert!(!is_valid_api_key_format("sk-short"));
-        assert!(!is_valid_api_key_format("pk-test12345678901234567890123456789"));
+        assert!(!is_valid_api_key_format(
+            "pk-test12345678901234567890123456789"
+        ));
         assert!(!is_valid_api_key_format(""));
     }
 
