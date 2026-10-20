@@ -3,6 +3,18 @@
 //! Scaffolded in Phase 0 — implementation lands in Phase 2 per the
 //! migration plan (`_tasks/superpowers/plans/2026-10-17-rust-backend-migration.md`).
 
+pub mod migration;
+
+pub use migration::{
+    MigrationConfig,
+    MigrationState,
+    run_migration_pipeline,
+    run_migrations,
+    scan_migrations,
+    MigrationFile,
+    MigrationRecord,
+};
+
 /// Marker test: keeps `cargo test --workspace` exercising this crate from day one.
 #[test]
 fn crate_scaffolded() {
