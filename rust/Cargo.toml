@@ -34,7 +34,15 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
-[profile.release]
-lto = "thin"
-strip = "symbols"
+axum-extra = "0.12"
+tower-http = { version = "0.6", features = ["cors", "limit", "trace"] }
+jsonwebtoken = "9"
+argon2 = "0.5"
+aes-gcm = "0.10"
+scrypt = { version = "1", features = ["std"] }
+hmac = "0.12"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4", "serde"] }
+toml = "0.8"
+figment = { version = "0.10", features = ["toml", "env"] }
+regex = "1"
