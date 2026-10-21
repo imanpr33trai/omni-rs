@@ -10,9 +10,9 @@
 //! - Column healers (`ensure*Columns`)
 
 use crate::{Database, DbConfig, DbResult, DbError};
-use rusqlite::{Connection, Transaction};
+use chrono::Utc;
+use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -168,7 +168,7 @@ fn has_fts5_support(conn: &Connection) -> bool {
 /// Check if migration is superseded/renamed
 fn resolve_migration_version(version: &str) -> String {
     for (old, new) in RENAMED_MIGRATION_COMPATIBILITY {
-        if version == old {
+        if version == *old {
             return new.to_string();
         }
     }
@@ -285,8 +285,8 @@ pub fn run_migrations(db: &Database, config: &MigrationConfig) -> DbResult<Migra
             |p| p.clone(),
         );
         std::fs::create_dir_all(&backup_path).ok();
-        let backup_file = backup_path.join(format!("pre_migration_{}.db", chrono::Utc::now().format("%Y%m%d_%H%M%S")));
-        Database::vacuum_into(&db.pool().config().path, &backup_file).ok();
+        let backup_file = backup_path.join(format!("pre_migration_{}.db", Utc::now().format("%Y%m%d_%H%M%S")));
+        Database::vacuum_into(&db.config().path, &backup_file).ok();
     }
 
     // Apply FTS5 filtering

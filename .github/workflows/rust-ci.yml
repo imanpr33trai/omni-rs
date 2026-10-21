@@ -18,8 +18,8 @@ on:
       - ".github/workflows/rust-ci.yml"
 
 jobs:
-  build-test:
-    name: fmt / clippy / test / deny
+  fmt-clippy:
+    name: fmt / clippy
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -36,10 +36,56 @@ jobs:
         run: cargo fmt --all -- --check
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test:
+    name: test (all crates)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    needs: fmt-clippy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
       - name: test
         run: cargo test --workspace
-      - name: cargo-deny (licenses strict, advisories advisory during phase 0)
-        continue-on-error: true
+
+  migration-test:
+    name: migration runner tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    needs: fmt-clippy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: Run migration unit tests
+        run: cargo test -p db --lib migration
+      - name: Run migration integration tests
+        run: cargo test -p db --test migration_runner
+
+  cargo-deny:
+    name: cargo-deny (licenses strict, advisories advisory)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
+    needs: [fmt-clippy, test, migration-test]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+      - name: cargo-deny
         run: |
           cargo install --locked cargo-deny
           cargo deny check
