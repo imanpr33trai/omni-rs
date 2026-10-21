@@ -1,0 +1,114 @@
+# OmniRoute defaults — mirrors .env.example section structure
+# These are fallbacks; real values come from .env + env vars
+
+[secrets]
+# jwt_secret = ""          # REQUIRED — must be set via env
+# api_key_secret = ""      # REQUIRED — must be set via env
+# initial_password = ""    # REQUIRED — must be set via env
+
+[storage]
+# data_dir = "~/.omniroute"
+# storage_encryption_key = ""
+# storage_encryption_key_version = 1
+disable_sqlite_auto_backup = false
+# redis_url = ""
+# omniroute_plugins_dir = ""
+
+[network]
+port = 20128
+
+[security]
+require_api_key = false
+
+[pii]
+# Hard Rule #20: both default FALSE
+pii_redaction_enabled = false
+pii_response_sanitization = false
+
+[tool_routing]
+# tool_policy = ""
+# routing_policy = ""
+
+[urls]
+# cloud_sync_url = ""
+# app_url = ""
+
+[outbound_proxy]
+# http_proxy = ""
+# https_proxy = ""
+# no_proxy = ""
+
+[cli_tool]
+# cli_tool_integration = ""
+
+[agent_mcp]
+agent_mcp_enabled = false
+
+[oauth]
+# oauth_credentials = ""
+
+[ua]
+# ua_override = ""
+
+[fingerprint]
+# fingerprint = ""
+
+[api_key_providers]
+# api_key_providers = ""
+
+[timeouts]
+# timeout_ms = 30000
+# connect_timeout_ms = 10000
+
+[logging]
+app_log_level = "info"
+
+[memory]
+# memory_optimization = ""
+
+[pricing]
+# pricing = ""
+
+[model_sync]
+# model_sync = ""
+
+[provider_specific]
+# provider_specific = ""
+
+[proxy_health]
+# proxy_health = ""
+
+[debug]
+provider_cooldown_enabled = false
+# debug = ""
+
+[github]
+# github_token = ""
+
+[quotas_tunnels_skills]
+mitm_enabled = false
+omniroute_no_sudo = false
+# tailscale_authkey = ""
+# ngrok_authtoken = ""
+# free_proxy = ""
+# bifrost = ""
+# quota_store = ""
+# skills = ""
+# omniroute_relay_backend = ""
+# omniroute_tls_cert = ""
+# omniroute_tls_key = ""
+# local_endpoints = ""
+
+[test]
+test_mode = false
+
+[radar]
+# radar = ""
+
+[v3850]
+rotation_enabled = false
+pii_flags = false
+
+[feature_flags]
+# 86 flags from featureFlagDefinitions.ts — defaults applied in AppConfig::default()
+# env→DB override chain applied at runtime
